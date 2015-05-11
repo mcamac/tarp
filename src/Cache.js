@@ -1,4 +1,6 @@
 var fs = require('fs');
+var path = require('path');
+var babel = require('babel-core');
 
 var ModuleStruct = require('./ModuleStruct');
 
@@ -6,11 +8,16 @@ var FileCache = function (opts) {
   this.cache = {};
 };
 
-FileCache.prototype.getSync = function (path) {
+function babelTransform(codeStr) {
+  return babel.transform(codeStr).code;
+}
+
+FileCache.prototype.getModule = function (path) {
   if (!this.cache[path]) {
-    this.cache[path] = fs.readFileSync(path);
+    var codeStr = fs.readFileSync(path).toString();
+    this.cache[path] = new ModuleStruct(path, babelTransform(codeStr));
   }
-  return ModuleStruct(path, this.cache[path]);
+  return this.cache[path];
 };
 
 FileCache.prototype.invalidate = function (path) {
@@ -20,5 +27,7 @@ FileCache.prototype.invalidate = function (path) {
 };
 
 var fileCache = new FileCache();
+
+fileCache.loaderCode = fs.readFileSync(path.resolve(__dirname, 'Loader.js')).toString();
 
 module.exports = fileCache;
