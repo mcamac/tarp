@@ -9,8 +9,10 @@
   "author": "Martin Camacho <martin@kensho.com>",
   "license": "MIT",
   "dependencies": {
+    "ramda": "0.13.0",
     "rx": "2.5.2",
     "sane": "1.1.2",
     "watchman": "0.1.8"
-  }
+  },
+  "bin": "./src/cli.js"
 }
