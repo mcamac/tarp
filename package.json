@@ -1,0 +1,16 @@
+{
+  "name": "tarp",
+  "version": "0.0.1",
+  "description": "Tiny asset rebuilder + packager",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Martin Camacho <martin@kensho.com>",
+  "license": "MIT",
+  "dependencies": {
+    "rx": "2.5.2",
+    "sane": "1.1.2",
+    "watchman": "0.1.8"
+  }
+}
