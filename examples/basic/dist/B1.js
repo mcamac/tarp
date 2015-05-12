@@ -1,9 +1,10 @@
 /* TARP-HEADER 
-4
+5
 0 /Users/martin/kensho/sarp/examples/basic/src/B-entry.js 948627046
-1 /Users/martin/kensho/sarp/examples/basic/src/B-req1.js 1564734662
-2 /Users/martin/kensho/sarp/examples/basic/src/B-req1-1.js 258751488
-3 /Users/martin/kensho/sarp/examples/basic/src/B-req2.js 2445677781
+1 /Users/martin/kensho/sarp/examples/basic/src/B-req1.js 79237125
+2 /Users/martin/kensho/sarp/examples/basic/src/B-req1-1.js 897864576
+3 /Users/martin/kensho/sarp/examples/basic/src/C/C1.js 1957065107
+4 /Users/martin/kensho/sarp/examples/basic/src/B-req2.js 2445677781
 TARP-HEADER */
 (function () {
   var loadedModules = {};
@@ -37,6 +38,7 @@ TARP-HEADER */
         return d * d;
       };
       var cube = __tarp_require(2);
+      __tarp_require(3);
       
       module.exports = function (d) {
         return square(cube(d));
@@ -48,8 +50,8 @@ TARP-HEADER */
       /*- tarp-cache-$START 2 -*/
       "use strict";
       
-      var cube = function cube(d) {
-        return d * d * d;
+      var cube = function cube(x) {
+        return x * x * x;
       };
       module.exports = cube;
       /*- tarp-cache-$END 2 -*/
@@ -57,6 +59,14 @@ TARP-HEADER */
     
     (function (module) {
       /*- tarp-cache-$START 3 -*/
+      'use strict';
+      
+      __tarp_require(2);
+      /*- tarp-cache-$END 3 -*/
+    }),
+    
+    (function (module) {
+      /*- tarp-cache-$START 4 -*/
       'use strict';
       
       function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
@@ -94,7 +104,7 @@ TARP-HEADER */
         roots.forEach(search);
         return visitedList;
       };
-      /*- tarp-cache-$END 3 -*/
+      /*- tarp-cache-$END 4 -*/
     })
   ];
   __tarp_require(0);

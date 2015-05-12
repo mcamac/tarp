@@ -1,6 +1,7 @@
 var fs = require('fs');
 var path = require('path');
 var babel = require('babel-core');
+var stringHash = require('string-hash');
 
 var ModuleStruct = require('./ModuleStruct');
 
@@ -15,7 +16,8 @@ function babelTransform(codeStr) {
 FileCache.prototype.getModule = function (path) {
   if (!this.cache[path]) {
     var codeStr = fs.readFileSync(path).toString();
-    this.cache[path] = new ModuleStruct(path, babelTransform(codeStr));
+    console.log('loading', path, codeStr);
+    this.cache[path] = new ModuleStruct(path, codeStr, stringHash(codeStr));
   }
   return this.cache[path];
 };

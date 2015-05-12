@@ -9,3 +9,6 @@
     loadedModules[modulePos] = newModule.exports;
     return loadedModules[modulePos];
   }
+
+<%= code %>
+}());
