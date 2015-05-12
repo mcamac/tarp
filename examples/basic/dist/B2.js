@@ -6,7 +6,7 @@
 3 /Users/martin/kensho/sarp/examples/basic/src/C/C1.js 1957065107
 4 /Users/martin/kensho/sarp/examples/basic/src/B-req2.js 2445677781
 TARP-HEADER */
-(function () {
+(function (__this) {
   var loadedModules = {};
   function __tarp_require(modulePos) {
     if (loadedModules[modulePos]) {
@@ -28,7 +28,7 @@ TARP-HEADER */
       
       console.log(sixthPower(2));
       /*- tarp-cache-$END 0 -*/
-    }),
+    }).bind(__this),
     
     (function (module) {
       /*- tarp-cache-$START 1 -*/
@@ -44,7 +44,7 @@ TARP-HEADER */
         return square(cube(d));
       };
       /*- tarp-cache-$END 1 -*/
-    }),
+    }).bind(__this),
     
     (function (module) {
       /*- tarp-cache-$START 2 -*/
@@ -55,7 +55,7 @@ TARP-HEADER */
       };
       module.exports = cube;
       /*- tarp-cache-$END 2 -*/
-    }),
+    }).bind(__this),
     
     (function (module) {
       /*- tarp-cache-$START 3 -*/
@@ -63,7 +63,7 @@ TARP-HEADER */
       
       __tarp_require(2);
       /*- tarp-cache-$END 3 -*/
-    }),
+    }).bind(__this),
     
     (function (module) {
       /*- tarp-cache-$START 4 -*/
@@ -105,7 +105,7 @@ TARP-HEADER */
         return visitedList;
       };
       /*- tarp-cache-$END 4 -*/
-    })
+    }).bind(__this)
   ];
   __tarp_require(0);
-}());
+}(this));

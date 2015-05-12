@@ -8,7 +8,8 @@ module.exports = {
     'B0.js': ['B-entry.js'],
     'B1.js': ['B-entry.js'],
     'B2.js': ['B-entry.js'],
-    'B3.js': ['B-entry.js']
+    'B3.js': ['B-entry.js'],
+    'A.css': ['css/A.scss', 'css/B.scss']
   },
   resolve: {
     root: SRC_DIR,

@@ -1,5 +1,6 @@
 var R = require('ramda');
 var fs = require('fs');
+var path = require('path');
 var _ = require('lodash');
 
 var FileCache = require('./Cache');
@@ -49,6 +50,7 @@ CachingWriter.prototype.loadCacheInfoFromFs = function () {
 
 
 CachingWriter.prototype.writeModules = function (targets, modules) {
+  // console.log(targets, R.keys(this.groups));
   var me = this;
   var inorderPositionMap = R.invertObj(R.map(R.path(['module', 'path']), modules));
 

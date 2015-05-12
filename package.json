@@ -12,8 +12,8 @@
     "babel-core": "5.2.17",
     "jade": "1.9.2",
     "lodash": "3.8.0",
+    "node-sass": "2.1.0",
     "ramda": "0.13.0",
-    "rx": "2.5.2",
     "sane": "1.1.2",
     "string-hash": "1.1.0",
     "watchman": "0.1.8"

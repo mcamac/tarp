@@ -1,16 +1,29 @@
 var babel = require('babel-core');
 var jade = require('jade');
 var path = require('path');
+var sass = require('node-sass');
+var R = require('ramda');
 
-function babelTransform(codeStr) {
-  return babel.transform(codeStr).code;
+function babelTransform(_module) {
+  return babel.transform(_module.code).code;
 }
 
+var BASE_DIR = '/Users/martin/code/zentreefish';
+var SASS_INCLUDES = [
+  path.resolve(BASE_DIR, 'assets/vendor/compass-mixins'),
+  path.resolve(BASE_DIR, 'assets/core/css/kui')];
+console.log(SASS_INCLUDES);
+
 var transforms = {
-  js: function (code) { return code; },
+  js: function (_module) { return _module.code; },
+  css: function (_module) { return _module.code; },
   es6: babelTransform,
-  jade: function (jadeStr) {
-    return 'module.exports = \'' + jade.render(jadeStr, {}) + '\';';
+  jade: function (_module) {
+    return 'module.exports = \'' + jade.render(_module.code, {}) + '\';';
+  },
+  scss: function(_module) {
+    // var relevantSassIncludes = R.filter(function (includePath) { return _module.path.indexOf(includePath) === -1; }, SASS_INCLUDES);
+    return sass.renderSync({ file: _module.path, includePaths: SASS_INCLUDES }).css.toString();
   }
 }
 
@@ -28,7 +41,7 @@ ModuleStruct.prototype.transform = function () {
   }
   this.transformed = {
     hash: this.hash,
-    code: transforms[this.ext](this.code)
+    code: transforms[this.ext](this)
   };
   return this.transformed.code;
 };

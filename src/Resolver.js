@@ -22,7 +22,7 @@ Resolver.prototype.resolve = function (parentPath, modulePath) {
   // Local modules - search from this.opts.root
   for (var i = 0; i < this.opts.ext.length; i++) {
     var pathToTry = path.resolve(this.opts.root, modulePath + this.opts.ext[i]);
-    console.log('resolve', modulePath, parentPath)
+    // console.log('resolve', modulePath, parentPath)
     if (fs.existsSync(pathToTry)) {
       return FileCache.getModule(pathToTry);
     }
