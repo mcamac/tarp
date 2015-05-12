@@ -1,7 +1,10 @@
 var R = require('ramda');
 var fs = require('fs');
 var _ = require('lodash');
+
 var FileCache = require('./Cache');
+var StringUtils = require('./utils/StringUtils');
+var indent = StringUtils.indent, unindent = StringUtils.unindent;
 
 var CachingWriter = function (path) {
   this.path = path;
@@ -38,25 +41,14 @@ CachingWriter.prototype.loadCacheInfoFromFs = function () {
       code: currentMatch[2]
     };
   }
-  console.log(groups);
+
   this.groups = groups;
   return groups;
 };
 
-function indent(s, n) {
-  // Indents each line of a string by n spaces.
-  var spaces = _.times(n, function () { return ' '; }).join('');
-  return s.split('\n').map(function (line) { return spaces + line; }).join('\n');
-}
 
-function unindent(s, n) {
-  // Indents each line of a string by n spaces.
-  var spaces = _.times(n, function () { return ' '; }).join('');
-  return s.split('\n').map(function (line) { return line.slice(n); }).join('\n');
-}
 
 CachingWriter.prototype.writeModules = function (targets, modules) {
-  console.log(modules);
   var me = this;
   var inorderPositionMap = R.invertObj(R.map(R.path(['module', 'path']), modules));
 
@@ -64,20 +56,22 @@ CachingWriter.prototype.writeModules = function (targets, modules) {
   var totalCode = '';
   var orderedCode = modules.map(function (node, inorderPos) {
     cacheInfo.push(inorderPos + ' ' + node.module.path + ' ' + node.module.hash);
-    console.log('asdf', me.groups[node.module.path], node.module.hash);
     if (me.groups[node.module.path] && (me.groups[node.module.path].hash == node.module.hash)) {
       return unindent(me.groups[node.module.path].code, 4);
     }
     var matchNum = 0;
-    var replaced = node.module.transform().replace(requireRegex, function (match, capture) {
+    var transformed = node.module.transform();
+    var replaced = node.requires.length > 0 ? transformed.replace(requireRegex, function (match, capture) {
+      // console.log(match, capture);
       var depInorderPosition = inorderPositionMap[node.requires[matchNum][1]];
       matchNum += 1;
       return '__tarp_require(' + depInorderPosition + ')';
-    })
+    }) : transformed;
     return indent(replaced, 2);
   }).map(function (code, inorderPos) {
-    return '(function (module) {\n  \/*- tarp-cache-$START ' + inorderPos +
-          ' -*/\n' + code + '\n  /*- tarp-cache-$END ' + inorderPos + ' -*/\n})';
+    var noRequires = modules[inorderPos].module.path.indexOf('vendor') >= 0 ? '' : 'module';
+    return '(function (' + noRequires + ') {\n  \/*- tarp-cache-$START ' + inorderPos +
+          ' -*/\n' + code + '\n  /*- tarp-cache-$END ' + inorderPos + ' -*/\n}).bind(__this)';
   }).join(',\n\n');
   var loaderTemplate = _.template(FileCache.loaderCode);
   var finalCode =  'var __tarp_code = [\n' + indent(orderedCode, 2) + '\n];\n';

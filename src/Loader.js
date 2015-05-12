@@ -1,4 +1,4 @@
-(function () {
+(function (__this) {
   var loadedModules = {};
   function __tarp_require(modulePos) {
     if (loadedModules[modulePos]) {
@@ -11,4 +11,4 @@
   }
 
 <%= code %>
-}());
+}(this));

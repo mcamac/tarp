@@ -16,7 +16,6 @@ function babelTransform(codeStr) {
 FileCache.prototype.getModule = function (path) {
   if (!this.cache[path]) {
     var codeStr = fs.readFileSync(path).toString();
-    console.log('loading', path, codeStr);
     this.cache[path] = new ModuleStruct(path, codeStr, stringHash(codeStr));
   }
   return this.cache[path];

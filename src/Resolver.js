@@ -15,7 +15,6 @@ Resolver.prototype.resolve = function (parentPath, modulePath) {
     for (var i = 0; i < this.opts.ext.length; i++) {
       var pathToTry = path.resolve(path.dirname(parentPath), modulePath + this.opts.ext[i]);
       if (fs.existsSync(pathToTry)) {
-        console.log(FileCache.getModule(pathToTry));
         return FileCache.getModule(pathToTry);
       }
     }
@@ -25,7 +24,6 @@ Resolver.prototype.resolve = function (parentPath, modulePath) {
     var pathToTry = path.resolve(this.opts.root, modulePath + this.opts.ext[i]);
     console.log('resolve', modulePath, parentPath)
     if (fs.existsSync(pathToTry)) {
-      console.log(FileCache.getModule(pathToTry));
       return FileCache.getModule(pathToTry);
     }
   }

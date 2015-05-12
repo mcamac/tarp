@@ -60,7 +60,7 @@ function assemble(targets, resolver) {
 }
 
 function walkRequires(resolver, depGraph, rootModule) {
-  var depStrs = findRequires(rootModule.code);
+  var depStrs = rootModule.path.indexOf(resolver.opts.noRequires) >= 0 ? [] : findRequires(rootModule.code);
   // console.log('deps of', rootModule.path, depStrs);
   var deps = depStrs.map(R.prop('group')).map(resolver.resolve.bind(resolver, rootModule.path));
   deps.forEach(function (dep) {
