@@ -4,8 +4,7 @@ var path = require('path');
 var _ = require('lodash');
 
 var FileCache = require('./Cache');
-var StringUtils = require('./utils/StringUtils');
-var indent = StringUtils.indent, unindent = StringUtils.unindent;
+var {indent, unindent} = require('./utils/StringUtils');
 
 var CachingWriter = function (path) {
   this.path = path;

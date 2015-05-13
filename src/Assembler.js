@@ -27,8 +27,8 @@ var CachingWriter = require('./CachingWriter');
 var CSSWriter = require('./CSSWriter');
 
 var writers = {
-  css: CSSWriter,
-  js: CachingWriter
+  '.css': CSSWriter,
+  '.js': CachingWriter
 };
 
 
@@ -36,35 +36,40 @@ class Assembler {
   constructor(config) {
     this.resolver = new Resolver(config.resolve);
     this.depGraph = new Graph();
+    this.targetGraph = new Graph();
     this.config = config;
   }
 
-  buildTarget(target, components) {
+  // Build target, writing result to filesystem and returning
+  buildTarget(target) {
+  	if (!this.config.targets[target]) {
+  		return {};
+  	}
+  	var components = this.config.targets[target];
     var time = new Date().getTime();
     var componentModules = components.map(comp => this.resolver.resolve(process.cwd(), comp));
-    var modules = this.modulesFor(componentModules);
+    var depModules = this.depsForModules(componentModules);
 
     var targetPath = path.resolve(process.cwd(), this.config.compile.outputDir, target);
 
-    var writer = new writers[path.extname(target).slice(1)](targetPath);
+    var writer = new writers[path.extname(target)](targetPath);
     writer.loadCacheInfoFromFs();
-    var targetCode = writer.writeModules(componentModules, modules);
-    // modules.forEach(function (mod) {
-    //   targetGraph.addEdge(mod.module.path, target);
-    // });
-    fs.writeFileSync(targetPath, targetCode);
 
+    var targetCode = writer.writeModules(componentModules, depModules);
+    depModules.forEach(mod => this.targetGraph.addEdge(mod.module.path, target));
+
+    fs.writeFileSync(targetPath, targetCode);
     return {
       target: target,
-      built: targetCode,
+      // built: targetCode,
       time: new Date().getTime() - time
     };
   }
 
   // Return an inorder array of modules required to assemble target files.
-  modulesFor(components) {
-    components.forEach(target => this.walkRequires(target));
-    var inorderPaths = this.depGraph.inorder(R.map(R.prop('path'), components));
+  depsForModules(componentModules) {
+    componentModules.forEach(target => this.walkRequires(target));
+    var inorderPaths = this.depGraph.inorder(R.map(R.prop('path'), componentModules));
     var inorderModules = R.props(inorderPaths, this.depGraph.verts);
     return inorderModules;
   }
@@ -81,6 +86,11 @@ class Assembler {
     };
     deps.forEach(dep => this.walkRequires(dep));
     return this.depGraph.verts[rootModule.path];
+  }
+
+  rebuildAfterChange(changedModule) {
+  	var parentTargets = this.targetGraph.edges[changedModule.path];
+  	console.log(parentTargets.map(target => this.buildTarget(target)));
   }
 }
 

@@ -13,6 +13,6 @@ function unindent(s, n) {
 }
 
 module.exports = {
-  indent: indent,
-  unindent: unindent
+  indent,
+  unindent
 };

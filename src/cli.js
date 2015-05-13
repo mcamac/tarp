@@ -22,13 +22,12 @@ console.log(config.targets);
 var r = R.mapObjIndexed((components, target) => ass.buildTarget(target, components), config.targets);
 console.log(R.map(R.pick(['target', 'time']), R.values(r)));
 
-// var sane = require('sane');
-// var watcher = sane(config.resolve.root, {glob: ['**/*.js', '**/*.es6', '**/*.css', '**/*.scss'], watchman: true});
-// watcher.on('change', function (filepath, root, stat) {
-//   console.log(filepath, root, stat, targetGraph.edges[filepath]);
-//   var cache = require('./Cache');
-//   cache.invalidate(path.resolve(root, filepath));
-//   var r = R.mapObjIndexed(R.flip(buildTarget), config.targets);
-//   console.log(R.map(R.pick(['target', 'time']), R.values(r)));
-//   // Need to do a dep graph search, rebuild, then update dep graph.
-// });
+var cache = require('./Cache');
+var sane = require('sane');
+var watcher = sane(config.resolve.root, {glob: ['**/*.js', '**/*.es6', '**/*.css', '**/*.scss'], watchman: true});
+watcher.on('change', function (filepath, root, stat) {
+  console.log(filepath, root);
+  cache.invalidate(path.resolve(root, filepath));
+  ass.rebuildAfterChange(cache.getModule(path.resolve(root, filepath)));
+  // Need to do a dep graph search, rebuild, then update dep graph.
+});

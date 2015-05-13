@@ -3,9 +3,8 @@ var fs = require('fs');
 var path = require('path');
 var _ = require('lodash');
 
-var StringUtils = require('./utils/StringUtils');
+var {indent, unindent} = require('./utils/StringUtils');
 var CachingWriter = require('./CachingWriter');
-var indent = StringUtils.indent, unindent = StringUtils.unindent;
 
 var CSSWriter = function (path) {
   this.path = path;

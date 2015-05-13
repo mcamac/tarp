@@ -1,16 +1,17 @@
 var Graph = function () {
   this.edges = {};
-  this.adjList = {};
+  this.adjSet = {};
   this.verts = [];
 };
 
 Graph.prototype.addEdge = function (from, to) {
   if (!this.edges[from]) {
     this.edges[from] = [];
-    this.adjList[from] = {};
+    this.adjSet[from] = {};
   }
-  if (!this.adjList[from][to]) {
+  if (!this.adjSet[from][to]) {
     this.edges[from].push(to);
+    this.adjSet[from][to] = true;
   }
 };
 
