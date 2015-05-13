@@ -2,6 +2,8 @@ var FileCache = require('./Cache');
 var Resolver = require('./Resolver');
 var R = require('ramda');
 var _ = require('lodash');
+var path = require('path');
+var fs = require('fs');
 
 var Graph = require('./Graph');
 
@@ -21,31 +23,66 @@ function findRequires(src) {
   return groups;
 }
 
-// Return an inorder array of modules required to assemble target files.
-function assemble(targets, resolver) {
-  var graph = new Graph();
-  targets.forEach(R.partial(walkRequires, resolver, graph));
-  var inorderPaths = graph.inorder(R.map(R.prop('path'), targets));
-  var inorderModules = R.props(inorderPaths, graph.verts);
-  return inorderModules;
-}
+var CachingWriter = require('./CachingWriter');
+var CSSWriter = require('./CSSWriter');
 
-function walkRequires(resolver, depGraph, rootModule) {
-  var depStrs = rootModule.path.indexOf(resolver.opts.noRequires) >= 0 ? [] : findRequires(rootModule.code);
-  // console.log('deps of', rootModule.path, depStrs);
-  var deps = depStrs.map(R.prop('group')).map(resolver.resolve.bind(resolver, rootModule.path));
-  deps.forEach(function (dep) {
-    depGraph.addEdge(rootModule.path, dep.path);
-  });
-  depGraph.verts[rootModule.path] = {
-    module: rootModule,
-    requires: R.zip(depStrs, R.map(R.prop('path'), deps))
-  };
-  deps.forEach(R.partial(walkRequires, resolver, depGraph))
-  return depGraph.verts[rootModule.path];
-}
-
-module.exports = {
-  findRequires: findRequires,
-  assemble: assemble
+var writers = {
+  css: CSSWriter,
+  js: CachingWriter
 };
+
+
+class Assembler {
+  constructor(config) {
+    this.resolver = new Resolver(config.resolve);
+    this.depGraph = new Graph();
+    this.config = config;
+  }
+
+  buildTarget(target, components) {
+    var time = new Date().getTime();
+    var componentModules = components.map(comp => this.resolver.resolve(process.cwd(), comp));
+    var modules = this.modulesFor(componentModules);
+
+    var targetPath = path.resolve(process.cwd(), this.config.compile.outputDir, target);
+
+    var writer = new writers[path.extname(target).slice(1)](targetPath);
+    writer.loadCacheInfoFromFs();
+    var targetCode = writer.writeModules(componentModules, modules);
+    // modules.forEach(function (mod) {
+    //   targetGraph.addEdge(mod.module.path, target);
+    // });
+    fs.writeFileSync(targetPath, targetCode);
+
+    return {
+      target: target,
+      built: targetCode,
+      time: new Date().getTime() - time
+    };
+  }
+
+  // Return an inorder array of modules required to assemble target files.
+  modulesFor(components) {
+    components.forEach(target => this.walkRequires(target));
+    var inorderPaths = this.depGraph.inorder(R.map(R.prop('path'), components));
+    var inorderModules = R.props(inorderPaths, this.depGraph.verts);
+    return inorderModules;
+  }
+
+  // Recursively walks require decorations found in modules, building the dependency graph.
+  walkRequires(rootModule) {
+    var depStrs = rootModule.path.indexOf(this.resolver.opts.noRequires) >= 0 ? [] : findRequires(rootModule.code);
+    // console.log('deps of', rootModule.path, depStrs);
+    var deps = depStrs.map(R.prop('group')).map(this.resolver.resolve.bind(this.resolver, rootModule.path));
+    deps.forEach(dep => this.depGraph.addEdge(rootModule.path, dep.path));
+    this.depGraph.verts[rootModule.path] = {
+      module: rootModule,
+      requires: R.zip(depStrs, R.map(R.prop('path'), deps))
+    };
+    deps.forEach(dep => this.walkRequires(dep));
+    return this.depGraph.verts[rootModule.path];
+  }
+}
+
+
+module.exports = Assembler;
