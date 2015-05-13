@@ -47,10 +47,7 @@ CachingWriter.prototype.loadCacheInfoFromFs = function () {
   return groups;
 };
 
-
-
 CachingWriter.prototype.writeModules = function (targets, modules) {
-  // console.log(targets, R.keys(this.groups));
   var me = this;
   var inorderPositionMap = R.invertObj(R.map(R.path(['module', 'path']), modules));
 

@@ -19,7 +19,7 @@ var transforms = {
   css: function (_module) { return _module.code; },
   es6: babelTransform,
   jade: function (_module) {
-    return 'module.exports = \'' + jade.render(_module.code, {}) + '\';';
+    return 'module.exports = \'' + jade.render(_module.code, {}).split('\n').join('\\n').replace(/'/g, "\\'") + '\';';
   },
   scss: function(_module) {
     // var relevantSassIncludes = R.filter(function (includePath) { return _module.path.indexOf(includePath) === -1; }, SASS_INCLUDES);

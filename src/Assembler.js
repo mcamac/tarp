@@ -3,11 +3,13 @@ var Resolver = require('./Resolver');
 var R = require('ramda');
 var _ = require('lodash');
 
+var Graph = require('./Graph');
+
 // TODO: add lookbehind.
 var requireRegex = /require\(['"]([\w\.\-\/_]*)['"]\)/g;
 
+// Finds all require statements within src.
 function findRequires(src) {
-  // Finds all require statements within src.
   var groups = [];
   var currentMatch;
   while ((currentMatch = requireRegex.exec(src)) !== null) {
@@ -19,39 +21,8 @@ function findRequires(src) {
   return groups;
 }
 
-
-var Graph = function () {
-  this.edges = {}
-  this.verts = [];
-};
-
-Graph.prototype.addEdge = function (from, to) {
-  if (!this.edges[from]) {
-    this.edges[from] = [];
-  }
-  this.edges[from].push(to);
-};
-
-Graph.prototype.inorder = function (roots) {
-  var visitedHash = {};
-  var visitedList = [];
-
-  var graph = this;
-
-  function search(root) {
-    if (visitedHash[root]) return;
-    visitedHash[root] = true;
-    visitedList.push(root);
-    var neighbors = graph.edges[root] || [];
-    neighbors.forEach(search);
-  }
-
-  roots.forEach(search);
-  return visitedList;
-};
-
+// Return an inorder array of modules required to assemble target files.
 function assemble(targets, resolver) {
-  // Return an inorder array of modules required to assemble target files.
   var graph = new Graph();
   targets.forEach(R.partial(walkRequires, resolver, graph));
   var inorderPaths = graph.inorder(R.map(R.prop('path'), targets));

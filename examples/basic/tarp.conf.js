@@ -17,7 +17,8 @@ module.exports = {
     alias: {}
   },
   compile: {
-    mode: 'concat'
+    mode: 'concat',
+    outputDir: './dist'
   },
   dev: {
     watch: [SRC_DIR],
