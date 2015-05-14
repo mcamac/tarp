@@ -8,6 +8,10 @@ var FileCache = function () {
   this.cache = {};
 };
 
+/**
+ * Load module from cache, falling back to filesystem if not found.
+ * @param  string path
+ */
 FileCache.prototype.getModule = function (path) {
   if (!this.cache[path]) {
     var codeStr = fs.readFileSync(path).toString();
@@ -16,6 +20,10 @@ FileCache.prototype.getModule = function (path) {
   return this.cache[path];
 };
 
+/**
+ * Invalidate a path within the file cache.
+ * @param  string path
+ */
 FileCache.prototype.invalidate = function (path) {
   if (this.cache[path]) {
     delete this.cache[path];

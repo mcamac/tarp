@@ -22,7 +22,9 @@ class Assembler {
     this.config = config;
   }
 
-  // Build target, writing result to filesystem and returning
+  /**
+   * Build target, writing result to filesystem and returning target and completion time
+   */
   buildTarget(target) {
     if (!this.config.targets[target]) {
       return {};
@@ -37,10 +39,12 @@ class Assembler {
     var writer = new fileWriters[path.extname(target)](targetPath);
     writer.loadCacheInfoFromFs();
 
-    var {code, map} = writer.writeModules(componentModules, depModules, this.depGraph);
+    var {rebuild, code, map} = writer.writeModules(componentModules, depModules, this.depGraph);
     depModules.forEach(mod => this.targetGraph.addEdge(mod.module.path, target));
 
-    fs.writeFileSync(targetPath, code + '\n' + inlineSourceMapComment(map, {sourcesContent: true}));
+    if (rebuild) {
+      fs.writeFileSync(targetPath, code + '\n' + inlineSourceMapComment(map, {sourcesContent: true}));
+    }
     return {
       target: target,
       time: new Date().getTime() - time

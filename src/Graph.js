@@ -1,3 +1,6 @@
+/**
+ * (Simple) graph class. Used to track dependency relationships.
+ */
 var Graph = function () {
   this.edges = {};
   this.outEdges = {};
@@ -5,6 +8,9 @@ var Graph = function () {
   this.verts = [];
 };
 
+/**
+ * Adds edge to graph.
+ */
 Graph.prototype.addEdge = function (from, to) {
   if (!this.edges[from]) {
     this.edges[from] = [];
@@ -20,7 +26,14 @@ Graph.prototype.addEdge = function (from, to) {
   }
 };
 
-Graph.prototype.inorder = function (roots, fn, backwards) {
+/**
+ * Performs an inorder traversal of the graph starting at roots, executing a callback if provided.
+ * @param  {[type]}
+ * @param  {Function} callback to execute per visited node
+ * @param  {[type]}
+ * @return {[type]}
+ */
+Graph.prototype.inorder = function (roots, callback, backwards) {
   var visitedHash = {};
   var visitedList = [];
 
@@ -36,8 +49,8 @@ Graph.prototype.inorder = function (roots, fn, backwards) {
     } else {
       neighbors = graph.outEdges[root] || [];
     }
-    if (fn) {
-      fn(graph, root, i);
+    if (callback) {
+      callback(graph, root, i);
       i++;
     }
     neighbors.forEach(search);
@@ -47,6 +60,11 @@ Graph.prototype.inorder = function (roots, fn, backwards) {
   return visitedList;
 };
 
+/**
+ * Returns an implied subgraph formed by going a DFS from the provided nodes.
+ * @param  {[type]}
+ * @return {Graph} subgraph implied by roots
+ */
 Graph.prototype.subgraph = function (roots) {
   var subgraph = new Graph();
   this.inorder(roots, (graph, root) => {
@@ -55,6 +73,12 @@ Graph.prototype.subgraph = function (roots) {
   return subgraph;
 };
 
+/**
+ * Removes any outgoing edges from provided vertex.
+ * @param  {[type]}
+ * @param  {[type]}
+ * @return {[type]}
+ */
 function removeOutgoing(graph, root) {
   var outgoing = graph.adjSet[root] || [];
   outgoing.forEach(neighbor => {
