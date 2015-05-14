@@ -10,7 +10,6 @@ function babelTransform(_module) {
     sourceMaps: true,
     sourceFileName: _module.path
   });
-  console.log('transforming...');
   return transformed;
 }
 
