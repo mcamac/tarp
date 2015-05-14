@@ -18,7 +18,7 @@ var requireRegex = /require\(['"]([\w\.\-\/_]*)['"]\)/g;
 function getCacheLines(lines, totalChunks) {
   var cacheLines = lines.slice(2, 2 + totalChunks)
     .map(function (line) { return line.split(' '); })
-    .map(function (line) { return [line[0], {path: line[1], hash: line[2]}]; });
+    .map(function (line) { return [line[0], {path: line[1], hash: line[2], mtime: line[3]}]; });
   return R.fromPairs(cacheLines);
 }
 
@@ -43,6 +43,7 @@ CachingWriter.prototype.loadCacheInfoFromFs = function () {
     var firstLine = codeLines[0];
     this.groups[cacheData[currentMatch[1]].path] = {
       hash: cacheData[currentMatch[1]].hash,
+      mtime: cacheData[currentMatch[1]].mtime,
       index: currentMatch[1],
       map: JSON.parse(firstLine.trim().slice(3, -3)),
       code: codeLines.slice(1).join('\n')
@@ -52,26 +53,57 @@ CachingWriter.prototype.loadCacheInfoFromFs = function () {
   return this.groups;
 };
 
+CachingWriter.prototype.checkIfAnyStale = function (modules) {
+  // Check if any files have changed.
+  if (R.keys(this.groups).length === modules.length) {
+    modules.forEach(module => {
+      if (!this.groups[module.module.path] || this.groups[module.module.path].hash != module.module.hash) {
+        return true;
+      }
+    });
+    return false;
+  }
+  return true;
+}
+
 CachingWriter.prototype.writeModules = function (targets, modules) {
   var inorderPositionMap = R.invertObj(R.map(R.path(['module', 'path']), modules));
   var cacheHeaderRows = [];
 
+  // if (!this.checkIfAnyStale(modules)) {
+  //   console.log('asdjklfasdjfldjslfkajdf', R.keys(this.groups).length);
+  //   return {
+  //     rebuild: false,
+  //     cacheInfo: {}
+  //   }
+  // }
+
+  var cacheInfo = {};
+
+  console.log(R.map(R.pick(['hash', 'index']), R.values(this.groups)));
   var orderedCode = modules.map((node, inorderPos) => {
-    cacheHeaderRows.push(inorderPos + ' ' + node.module.path + ' ' + node.module.hash);
-    if (this.groups[node.module.path] && (this.groups[node.module.path].hash == node.module.hash)) {
+    cacheHeaderRows.push([inorderPos, node.module.path, node.module.hash, node.module.mtime].join(' '));
+    cacheInfo[node.module.path] = {
+      mtime: node.module.mtime,
+      index: inorderPos
+    };
+    if (this.groups[node.module.path] && (this.groups[node.module.path].mtime == node.module.mtime)) {
       var cachedModule = this.groups[node.module.path];
       return SourceNode.fromStringWithSourceMap(
         cachedModule.code, new SourceMapConsumer(cachedModule.map));
     }
 
+    console.log('changed'.red)
+    var time = new Date().getTime();
     var transformedModule = node.module.transform();
+    console.log('comp time'.red, new Date().getTime() - time, node.module.path);
     var codeWithTarpRequires = transformedModule.code;
     if (node.requires.length > 0) {
       codeWithTarpRequires = transformedModule.code.replace(requireRegex, (match, capture) => {
         var matchingRequire = R.find(nr => nr[0].group === capture, node.requires);
         if (matchingRequire) {
           var depInorderPosition = inorderPositionMap[matchingRequire[1]];
-          return '__tarp_require(' + depInorderPosition + ')';
+          return `__tarp_require(${depInorderPosition})`;
         }
         // TODO: throw error here - module was not found.
         return 'undefined';
@@ -125,7 +157,11 @@ CachingWriter.prototype.writeModules = function (targets, modules) {
   return {
     rebuild: true,
     code: outputNode.toString(),
-    map: outputNode.toStringWithSourceMap().map.toString()
+    map: outputNode.toStringWithSourceMap().map.toString(),
+    cacheInfo: {
+      entryModules: R.pluck('path', targets),
+      modules: cacheInfo
+    }
   };
 };
 
