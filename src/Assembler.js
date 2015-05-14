@@ -11,7 +11,6 @@ var inlineSourceMapComment = require('inline-source-map-comment');
 
 
 var fileWriters = {
-  '.css': require('./CSSWriter'),
   '.js': require('./CachingWriter')
 };
 
