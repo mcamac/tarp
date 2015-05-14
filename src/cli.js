@@ -16,7 +16,7 @@ console.log(config.targets);
 var r = assembler.buildAllTargets();
 console.log(R.sortBy(R.prop('time'), R.map(R.pick(['target', 'time']), R.values(r))));
 console.log(R.sum(R.pluck('time', R.values(r))));
-console.log(assembler.depGraph);
+// console.log(assembler.depGraph);
 
 
 var cache = require('./Cache');
@@ -24,6 +24,7 @@ var sane = require('sane');
 var watcher = sane(config.resolve.root, {glob: ['**/*.js', '**/*.es6', '**/*.jade'], watchman: true});
 watcher.on('change', function (filepath, root, stat) {
   console.log(filepath.green, root);
-  cache.invalidate(path.resolve(root, filepath));
-  assembler.rebuildAfterChange(cache.getModule(path.resolve(root, filepath)));
+  var absolutePath = path.resolve(root, filepath);
+  cache.invalidate(absolutePath);
+  console.log(assembler.rebuildAfterChange(cache.getModule(absolutePath)));
 });

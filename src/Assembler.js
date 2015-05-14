@@ -22,8 +22,10 @@ class Assembler {
     this.depGraph = new Graph();
     this.targetGraph = new Graph();
     this.config = config;
+
+    var outputDir = path.resolve(process.cwd(), this.config.compile.outputDir);
     this.targets = R.mapObjIndexed(
-      (entryModules, targets) => new Target(targets, entryModules, path.resolve(process.cwd(), this.config.compile.outputDir)),
+      (entryModules, target) => new Target(target, entryModules, outputDir),
       config.targets);
   }
 
@@ -34,6 +36,11 @@ class Assembler {
     return R.mapObjIndexed(target => this.buildTarget(target), this.targets);
   }
 
+  /**
+   * Check if target needs rebuilding. Two heuristics are used:
+   *   1. The mtimes of every module used to previously compile the target are unchanged.
+   *   2. The list of entry modules for the target is unchanged (including their order).
+   */
   checkIfNeedsRebuild(target) {
     if (fs.existsSync(target.cachePath)) {
       var targetCacheInfo = JSON.parse(fs.readFileSync(target.cachePath));
@@ -42,14 +49,20 @@ class Assembler {
         ({mtime}, modulePath) => FileCache.getModule(modulePath).mtime === mtime,
         targetCacheInfo.modules);
 
-      R.forEach(modulePath => this.targetGraph.addEdge(modulePath, target.target), R.keys(targetCacheInfo.modules));
-      // R.forEach(modulePath => this.depGraph.addEdge(target.target, modulePath), R.keys(targetCacheInfo.modules));
-      R.keys(targetCacheInfo.depGraph).forEach(
-        parent => targetCacheInfo.depGraph[parent].forEach(child => this.depGraph.addEdge(parent, child)));
-      var noModifiedDependencies = R.all(x => x, R.values(modifiedDependencies));
-      var sameEntryModuleList = R.eqDeep(targetCacheInfo.entryModules, target.entryModules);
+      R.keys(targetCacheInfo.modules).forEach(
+        modulePath => this.targetGraph.addEdge(modulePath, target.target));
 
-      console.log('mod'.green, modifiedDependencies, noModifiedDependencies);
+      R.keys(targetCacheInfo.depGraph).forEach(
+        parent => targetCacheInfo.depGraph[parent].forEach(
+          child => this.depGraph.addEdge(parent, child)));
+
+      var noModifiedDependencies = R.all(x => x, R.values(modifiedDependencies));
+      var sameEntryModuleList = R.eqDeep(
+        targetCacheInfo.entryModules,
+        R.pluck('path', this.resolver.resolveMany(process.cwd(), target.entryModules)));
+
+      console.log('mod'.green, modifiedDependencies, noModifiedDependencies, sameEntryModuleList,
+        targetCacheInfo.entryModules);
       if (noModifiedDependencies && sameEntryModuleList) {
         return false;
       }
@@ -79,12 +92,12 @@ class Assembler {
     var depModules = this.depsForModules(componentModules);
 
     var writer = new fileWriters[path.extname(target.target)](target.filePath);
-    writer.loadCacheInfoFromFs();
-
     var {rebuild, code, map, cacheInfo} = writer.writeModules(componentModules, depModules, this.depGraph);
-    console.log('asdfasd'.cyan, cacheInfo);
+
+    // Update dependency graph and save to cache file.
     depModules.forEach(mod => this.targetGraph.addEdge(mod.module.path, target.target));
     cacheInfo.depGraph = this.depGraph.subgraph(R.pluck('path', componentModules)).edges;
+
     if (rebuild) {
       fs.writeFileSync(target.filePath,
         code + '\n' + inlineSourceMapComment(map, {sourcesContent: true}));
@@ -97,40 +110,47 @@ class Assembler {
     };
   }
 
-  // Return an inorder array of modules required to assemble target files.
+  /**
+   * Return an inorder array of modules required to assemble target files.
+   */
   depsForModules(componentModules) {
     componentModules.forEach(target => this.walkRequires(target));
     var inorderPaths = this.depGraph.inorder(R.map(R.prop('path'), componentModules));
     var inorderModules = R.props(inorderPaths, this.depGraph.verts);
-    console.log('foo'.red, inorderPaths, inorderModules);
     return inorderModules;
   }
 
-  // Recursively walks require decorations found in modules, building the dependency graph.
+  /**
+   * Recursively walks require decorations found in modules, building the dependency graph.
+   */
   walkRequires(rootModule) {
     rootModule.loadCodeFromFs();
-    var depStrs = [];
+    var depMatches = [];
     if (rootModule.path.indexOf(this.resolver.opts.noRequires) === -1) {
-        depStrs = findRequires(rootModule.code);
+        depMatches = findRequires(rootModule.code);
     }
-    console.log('deps of', rootModule.path, depStrs);
-    var deps = depStrs.map(R.prop('group')).map(this.resolver.resolve.bind(this.resolver, rootModule.path));
+    console.log('deps of', rootModule.path, depMatches);
+    var deps = depMatches.map(R.prop('group')).map(depModule => this.resolver.resolve(rootModule.path, depModule));
+
     // Filter out unresolved modules.... (should throw error in the future.)
     deps = deps.filter(x => x);
 
+    // Update dependency graph
     deps.forEach(dep => this.depGraph.addEdge(rootModule.path, dep.path));
     this.depGraph.verts[rootModule.path] = {
       module: rootModule,
-      requires: R.zip(depStrs, R.map(R.prop('path'), deps))
+      requires: R.zip(depMatches, R.map(R.prop('path'), deps))
     };
+
     deps.forEach(dep => this.walkRequires(dep));
   }
 
   rebuildAfterChange(changedModule) {
     var parentTargets = this.targetGraph.edges[changedModule.path];
     if (parentTargets) {
-      console.log(parentTargets.map(targetPath => this.buildTarget(this.targets[targetPath])));
+      return parentTargets.map(targetPath => this.buildTarget(this.targets[targetPath]));
     }
+    return [];
   }
 }
 

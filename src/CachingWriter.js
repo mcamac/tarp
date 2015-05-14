@@ -10,6 +10,7 @@ var {indent, unindent} = require('./utils/StringUtils');
 var CachingWriter = function (path) {
   this.path = path;
   this.groups = {};
+  this.loadCacheInfoFromFs();
 }
 
 var cacheRegex = /\/\*- tarp-cache-\$START (\d+) -\*\/\n([\s\S]*)\n *\/\*- tarp-cache-\$END \1 -\*\//g;
@@ -53,35 +54,13 @@ CachingWriter.prototype.loadCacheInfoFromFs = function () {
   return this.groups;
 };
 
-CachingWriter.prototype.checkIfAnyStale = function (modules) {
-  // Check if any files have changed.
-  if (R.keys(this.groups).length === modules.length) {
-    modules.forEach(module => {
-      if (!this.groups[module.module.path] || this.groups[module.module.path].hash != module.module.hash) {
-        return true;
-      }
-    });
-    return false;
-  }
-  return true;
-}
-
-CachingWriter.prototype.writeModules = function (targets, modules) {
+CachingWriter.prototype.writeModules = function (entryModules, modules) {
   var inorderPositionMap = R.invertObj(R.map(R.path(['module', 'path']), modules));
   var cacheHeaderRows = [];
 
-  // if (!this.checkIfAnyStale(modules)) {
-  //   console.log('asdjklfasdjfldjslfkajdf', R.keys(this.groups).length);
-  //   return {
-  //     rebuild: false,
-  //     cacheInfo: {}
-  //   }
-  // }
-
   var cacheInfo = {};
 
-  console.log(R.map(R.pick(['hash', 'index']), R.values(this.groups)));
-  var orderedCode = modules.map((node, inorderPos) => {
+  var orderedSourceNodes = modules.map((node, inorderPos) => {
     cacheHeaderRows.push([inorderPos, node.module.path, node.module.hash, node.module.mtime].join(' '));
     cacheInfo[node.module.path] = {
       mtime: node.module.mtime,
@@ -125,9 +104,9 @@ CachingWriter.prototype.writeModules = function (targets, modules) {
     var sourceMap = node.toStringWithSourceMap().map.toString();
     // TODO: Make this a regex.
     var moduleArgs = modules[inorderPos].module.path.indexOf('vendor') >= 0 ? '' : 'module';
-    node.prepend('// ' + sourceMap + ' */\n');
+    node.prepend(`\/\/ ${sourceMap} */\n`);
     node.prepend(
-      '(function (' + moduleArgs + ') {\n' +
+      `(function (${moduleArgs}) {\n` +
       '\/*- tarp-cache-$START ' + inorderPos + ' -*/\n');
     node.add('\n/*- tarp-cache-$END ' + inorderPos + ' -*/\n}).bind(__this)');
     return node;
@@ -135,7 +114,7 @@ CachingWriter.prototype.writeModules = function (targets, modules) {
 
   // Join each module closure.
   var joinedModulesNode = new SourceNode();
-  orderedCode.forEach(node => joinedModulesNode.add(node));
+  orderedSourceNodes.forEach(node => joinedModulesNode.add(node));
   joinedModulesNode.join(',\n\n');
 
   // Build output file.
@@ -151,7 +130,7 @@ CachingWriter.prototype.writeModules = function (targets, modules) {
   outputNode.add(joinedModulesNode);
   outputNode.add('\n];\n');
   // Add top-level require statements for target modules.
-  R.pluck('path', targets).forEach((path) => outputNode.add('__tarp_require(' + inorderPositionMap[path] + ');\n'));
+  R.pluck('path', entryModules).forEach((path) => outputNode.add(`__tarp_require(${inorderPositionMap[path]});\n`));
   outputNode.add('\n}(this));');
 
   return {
@@ -159,7 +138,7 @@ CachingWriter.prototype.writeModules = function (targets, modules) {
     code: outputNode.toString(),
     map: outputNode.toStringWithSourceMap().map.toString(),
     cacheInfo: {
-      entryModules: R.pluck('path', targets),
+      entryModules: R.pluck('path', entryModules),
       modules: cacheInfo
     }
   };

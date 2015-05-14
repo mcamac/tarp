@@ -1,8 +1,8 @@
 /* TARP-HEADER
 5
 0 /Users/martin/kensho/sarp/examples/basic/src/B-entry.js 948627046 2015-05-13T22:38:16.000Z
-1 /Users/martin/kensho/sarp/examples/basic/src/B-req1.es6 79237125 2015-05-12T20:38:29.000Z
-2 /Users/martin/kensho/sarp/examples/basic/src/B-req1-1.es6 258751488 2015-05-14T00:25:44.000Z
+1 /Users/martin/kensho/sarp/examples/basic/src/B-req1.es6 79237125 2015-05-14T20:58:24.000Z
+2 /Users/martin/kensho/sarp/examples/basic/src/B-req1-1.es6 258751488 2015-05-14T21:05:02.000Z
 3 /Users/martin/kensho/sarp/examples/basic/src/C/C1.js 1957065107 2015-05-13T00:29:29.000Z
 4 /Users/martin/kensho/sarp/examples/basic/src/B-req2.es6 3424463177 2015-05-14T00:26:03.000Z
 TARP-HEADER */

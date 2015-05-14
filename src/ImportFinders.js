@@ -1,7 +1,6 @@
 // TODO: add lookbehind.
 var requireRegex = /require\(['"]([\w\.\-\/_]*)['"]\)/g;
 
-// Finds all require statements within src.
 /**
  * Finds all require statements within given code.
  */

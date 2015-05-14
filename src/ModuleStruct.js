@@ -56,6 +56,9 @@ function ModuleStruct(mpath, mtime, code, hash) {
   this.mtime = (new Date(mtime)).toISOString();
 };
 
+/**
+ * Loads module code from filesystem and computes string hash.
+ */
 ModuleStruct.prototype.loadCodeFromFs = function () {
   if (!this.code || !this.hash) {
     console.log('loading code', this.path.blue);
@@ -64,6 +67,9 @@ ModuleStruct.prototype.loadCodeFromFs = function () {
   }
 }
 
+/**
+ * Applies transforms to module code according to file extension.
+ */
 ModuleStruct.prototype.transform = function () {
   if (this.transformed && this.hash === this.transformed.hash) {
     return this.transformed.codeAndMap;
