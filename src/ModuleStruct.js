@@ -14,12 +14,6 @@ function babelTransform(_module) {
   return transformed;
 }
 
-var BASE_DIR = '/Users/martin/code/zentreefish';
-var SASS_INCLUDES = [
-  path.resolve(BASE_DIR, 'assets/vendor/compass-mixins'),
-  path.resolve(BASE_DIR, 'assets/core/css/kui')];
-console.log(SASS_INCLUDES);
-
 var transforms = {
   js: function (_module) { return {
     code: _module.code
