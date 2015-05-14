@@ -60,26 +60,26 @@ CachingWriter.prototype.writeModules = function (entryModules, modules) {
 
   var cacheInfo = {};
 
-  var orderedSourceNodes = modules.map((node, inorderPos) => {
-    cacheHeaderRows.push([inorderPos, node.module.path, node.module.hash, node.module.mtime].join(' '));
-    cacheInfo[node.module.path] = {
-      mtime: node.module.mtime,
+  var orderedSourceNodes = modules.map((depModule, inorderPos) => {
+    cacheHeaderRows.push([inorderPos, depModule.path, depModule.hash, depModule.mtime].join(' '));
+    cacheInfo[depModule.path] = {
+      mtime: depModule.mtime,
       index: inorderPos
     };
-    if (this.groups[node.module.path] && (this.groups[node.module.path].mtime == node.module.mtime)) {
-      var cachedModule = this.groups[node.module.path];
+    if (this.groups[depModule.path] && (this.groups[depModule.path].mtime == depModule.mtime)) {
+      var cachedModule = this.groups[depModule.path];
       return SourceNode.fromStringWithSourceMap(
         cachedModule.code, new SourceMapConsumer(cachedModule.map));
     }
 
     console.log('changed'.red)
     var time = new Date().getTime();
-    var transformedModule = node.module.transform();
-    console.log('comp time'.red, new Date().getTime() - time, node.module.path);
+    var transformedModule = depModule.transform();
+    console.log('comp time'.red, new Date().getTime() - time, depModule.path);
     var codeWithTarpRequires = transformedModule.code;
-    if (node.requires.length > 0) {
+    if (depModule.requires.length > 0) {
       codeWithTarpRequires = transformedModule.code.replace(requireRegex, (match, capture) => {
-        var matchingRequire = R.find(nr => nr[0].group === capture, node.requires);
+        var matchingRequire = R.find(nr => nr[0].group === capture, depModule.requires);
         if (matchingRequire) {
           var depInorderPosition = inorderPositionMap[matchingRequire[1]];
           return `__tarp_require(${depInorderPosition})`;
@@ -93,17 +93,17 @@ CachingWriter.prototype.writeModules = function (entryModules, modules) {
       return SourceNode.fromStringWithSourceMap(
         codeWithTarpRequires, new SourceMapConsumer(transformedModule.map));
     } else {
-      var sn = new SourceNode(null, null, node.module.path);
+      var sn = new SourceNode(null, null, depModule.path);
       codeWithTarpRequires.split('\n')
-        .forEach((line, i) => sn.add(new SourceNode(i + 1, 0, node.module.path, line + '\n')));
-      sn.setSourceContent(node.module.path, node.module.code);
+        .forEach((line, i) => sn.add(new SourceNode(i + 1, 0, depModule.path, line + '\n')));
+      sn.setSourceContent(depModule.path, depModule.code);
       return sn;
     }
   }).map(function (node, inorderPos) {
     // Wrap module code in comments with sourcemap and module boundary.
     var sourceMap = node.toStringWithSourceMap().map.toString();
     // TODO: Make this a regex.
-    var moduleArgs = modules[inorderPos].module.path.indexOf('vendor') >= 0 ? '' : 'module';
+    var moduleArgs = modules[inorderPos].path.indexOf('vendor') >= 0 ? '' : 'module';
     node.prepend(`\/\/ ${sourceMap} */\n`);
     node.prepend(
       `(function (${moduleArgs}) {\n` +
@@ -117,7 +117,7 @@ CachingWriter.prototype.writeModules = function (entryModules, modules) {
   orderedSourceNodes.forEach(node => joinedModulesNode.add(node));
   joinedModulesNode.join(',\n\n');
 
-  // Build output file.
+  // Build output source node.
   var outputNode = new SourceNode();
   var cacheHeaderCommentStr = [
     '/* TARP-HEADER',

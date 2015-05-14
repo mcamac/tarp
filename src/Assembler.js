@@ -95,7 +95,7 @@ class Assembler {
     var {rebuild, code, map, cacheInfo} = writer.writeModules(componentModules, depModules, this.depGraph);
 
     // Update dependency graph and save to cache file.
-    depModules.forEach(mod => this.targetGraph.addEdge(mod.module.path, target.target));
+    depModules.forEach(_module => this.targetGraph.addEdge(_module.path, target.target));
     cacheInfo.depGraph = this.depGraph.subgraph(R.pluck('path', componentModules)).edges;
 
     if (rebuild) {
@@ -137,10 +137,8 @@ class Assembler {
 
     // Update dependency graph
     deps.forEach(dep => this.depGraph.addEdge(rootModule.path, dep.path));
-    this.depGraph.verts[rootModule.path] = {
-      module: rootModule,
-      requires: R.zip(depMatches, R.map(R.prop('path'), deps))
-    };
+    rootModule.requires = R.zip(depMatches, R.map(R.prop('path'), deps));
+    this.depGraph.verts[rootModule.path] = rootModule;
 
     deps.forEach(dep => this.walkRequires(dep));
   }
