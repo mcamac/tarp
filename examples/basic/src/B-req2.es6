@@ -4,6 +4,7 @@ class Graph {
   constructor() {
     this.edges = {}
     this.verts = [];
+    this.outEdges = [];
   }
 }
 

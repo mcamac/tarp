@@ -10,11 +10,14 @@
   "license": "MIT",
   "dependencies": {
     "babel-core": "5.2.17",
+    "colors": "1.1.0",
+    "inline-source-map-comment": "1.0.5",
     "jade": "1.9.2",
     "lodash": "3.8.0",
     "node-sass": "2.1.0",
     "ramda": "0.13.0",
     "sane": "1.1.2",
+    "source-map": "0.4.2",
     "string-hash": "1.1.0",
     "watchman": "0.1.8"
   },

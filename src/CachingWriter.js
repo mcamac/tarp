@@ -2,6 +2,7 @@ var R = require('ramda');
 var fs = require('fs');
 var path = require('path');
 var _ = require('lodash');
+var {SourceNode, SourceMapConsumer, SourceMapGenerator} = require('source-map');
 
 var FileCache = require('./Cache');
 var {indent, unindent} = require('./utils/StringUtils');
@@ -35,10 +36,12 @@ CachingWriter.prototype.loadCacheInfoFromFs = function () {
   var groups = {};
   var currentMatch;
   while ((currentMatch = cacheRegex.exec(src)) !== null) {
+    // console.log('adfasdfdas', JSON.parse(currentMatch[2].split('\n')[0].trim().slice(3, -3)));
     groups[cacheLines[currentMatch[1]].path] = {
       hash: cacheLines[currentMatch[1]].hash,
       index: currentMatch[1],
-      code: currentMatch[2]
+      map: JSON.parse(currentMatch[2].split('\n')[0].trim().slice(3, -3)),
+      code: currentMatch[2].split('\n').slice(1).join('\n')
     };
   }
 
@@ -49,33 +52,65 @@ CachingWriter.prototype.loadCacheInfoFromFs = function () {
 CachingWriter.prototype.writeModules = function (targets, modules) {
   var me = this;
   var inorderPositionMap = R.invertObj(R.map(R.path(['module', 'path']), modules));
-
   var cacheInfo = [];
   var totalCode = '';
+
   var orderedCode = modules.map(function (node, inorderPos) {
     cacheInfo.push(inorderPos + ' ' + node.module.path + ' ' + node.module.hash);
     if (me.groups[node.module.path] && (me.groups[node.module.path].hash == node.module.hash)) {
-      return unindent(me.groups[node.module.path].code, 4);
+      return SourceNode.fromStringWithSourceMap(
+        me.groups[node.module.path].code, new SourceMapConsumer(me.groups[node.module.path].map));
     }
-    var matchNum = 0;
+
     var transformed = node.module.transform();
-    var replaced = node.requires.length > 0 ? transformed.replace(requireRegex, function (match, capture) {
-      // console.log(match, capture);
-      var depInorderPosition = inorderPositionMap[node.requires[matchNum][1]];
-      matchNum += 1;
-      return '__tarp_require(' + depInorderPosition + ')';
-    }) : transformed;
-    return indent(replaced, 2);
-  }).map(function (code, inorderPos) {
+    var replaced = node.requires.length > 0 ? transformed.code.replace(requireRegex, function (match, capture) {
+      // console.log(match, capture, node.requires);
+      var matchingRequire = R.find(nr => nr[0].group === capture, node.requires);
+      if (matchingRequire) {
+        var depInorderPosition = inorderPositionMap[matchingRequire[1]];
+        return '__tarp_require(' + depInorderPosition + ')';
+      }
+      return 'undefined';
+    }) : transformed.code;
+    if (transformed.map) {
+      return SourceNode.fromStringWithSourceMap(replaced, new SourceMapConsumer(transformed.map));
+    } else {
+      var sn = new SourceNode(null, null, node.module.path);
+      replaced.split('\n').forEach((line, i) => sn.add(new SourceNode(i + 1, 0, node.module.path, line + '\n')));
+      sn.setSourceContent(node.module.path, node.module.code);
+      return sn;
+    }
+  }).map(function (node, inorderPos) {
+    var sourceMap = node.toStringWithSourceMap().map.toString();
+
     var noRequires = modules[inorderPos].module.path.indexOf('vendor') >= 0 ? '' : 'module';
-    return '(function (' + noRequires + ') {\n  \/*- tarp-cache-$START ' + inorderPos +
-          ' -*/\n' + code + '\n  /*- tarp-cache-$END ' + inorderPos + ' -*/\n}).bind(__this)';
-  }).join(',\n\n');
-  var loaderTemplate = _.template(FileCache.loaderCode);
-  var finalCode =  'var __tarp_code = [\n' + indent(orderedCode, 2) + '\n];\n';
-  finalCode += R.pluck('path', targets).map(function (path) { return '__tarp_require(' + inorderPositionMap[path] + ');';}).join('\n');
+    node.prepend('// ' + sourceMap + ' */\n');
+    node.prepend('(function (' + noRequires + ') {\n\/*- tarp-cache-$START ' + inorderPos +
+          ' -*/\n');
+    node.add('\n/*- tarp-cache-$END ' + inorderPos + ' -*/\n}).bind(__this)');
+    return node;
+  });
+
+  var codeNode = new SourceNode();
+  orderedCode.forEach(node => codeNode.add(node));
+  codeNode.join(',\n\n');
+
+  var outputNode = new SourceNode();
   var cacheHeaderComment = '/* TARP-HEADER \n' + cacheInfo.length + '\n' + cacheInfo.join('\n') + '\nTARP-HEADER */\n';
-  return cacheHeaderComment + loaderTemplate({code: indent(finalCode, 2)});
+  outputNode.add(cacheHeaderComment);
+  outputNode.add(FileCache.loaderCode);
+  outputNode.add('var __tarp_code = [\n')
+  outputNode.add(codeNode);
+  outputNode.add('\n];\n');
+  R.pluck('path', targets).forEach((path) => outputNode.add('__tarp_require(' + inorderPositionMap[path] + ');\n'));
+  outputNode.add('\n}(this));');
+
+  return {
+    code: outputNode.toString(),
+    map: outputNode.toStringWithSourceMap().map.toString()
+  };
+  // var finalCode =  'var __tarp_code = [\n' + indent(orderedCode, 2) + '\n];\n';
+  // return cacheHeaderComment + loaderTemplate({code: indent(finalCode, 2)});
 };
 
 var writers = {};

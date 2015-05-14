@@ -3,9 +3,15 @@ var jade = require('jade');
 var path = require('path');
 var sass = require('node-sass');
 var R = require('ramda');
+var {SourceNode, SourceMapConsumer} = require('source-map');
 
 function babelTransform(_module) {
-  return babel.transform(_module.code).code;
+  var transformed = babel.transform(_module.code, {
+    sourceMaps: true,
+    sourceFileName: _module.path
+  });
+  console.log('transforming...');
+  return transformed;
 }
 
 var BASE_DIR = '/Users/martin/code/zentreefish';
@@ -15,18 +21,16 @@ var SASS_INCLUDES = [
 console.log(SASS_INCLUDES);
 
 var transforms = {
-  js: function (_module) { return _module.code; },
-  css: function (_module) { return _module.code; },
+  js: function (_module) { return {
+    code: _module.code
+  }},
   es6: babelTransform,
   jade: function (_module) {
-    return 'module.exports = \'' + jade.render(_module.code, {}).split('\n').join('\\n').replace(/'/g, "\\'") + '\';';
-  },
-  scss: function(_module) {
-    // var relevantSassIncludes = R.filter(function (includePath) { return _module.path.indexOf(includePath) === -1; }, SASS_INCLUDES);
-    return sass.renderSync({ file: _module.path, includePaths: SASS_INCLUDES }).css.toString();
+    return {
+      code: 'module.exports = \'' + jade.render(_module.code, {}).split('\n').join('\\n').replace(/'/g, "\\'") + '\';'
+    };
   }
 }
-
 
 var ModuleStruct = function (mpath, code, hash) {
   this.path = mpath;

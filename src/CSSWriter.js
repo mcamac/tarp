@@ -25,6 +25,8 @@ CSSWriter.prototype.loadCacheInfoFromFs = function () {
   if (!fs.existsSync(this.path)) {
     return this.groups;
   }
+  // this.groups = {};
+  // return {};
 
   var src = fs.readFileSync(this.path).toString();
   var srcLines = src.split('\n');
@@ -46,21 +48,36 @@ CSSWriter.prototype.loadCacheInfoFromFs = function () {
 };
 
 
-function wrap(code, pos) {
+function addCacheDecorator(code, pos) {
   return '\/*- tarp-cache-$START ' + pos +
           ' -*/\n' + code + '\n/*- tarp-cache-$END ' + pos + ' -*/';
 }
 
-CSSWriter.prototype.writeModules = function (targets, modules) {
+CSSWriter.prototype.writeModules = function (targets, modules, depGraph) {
   // No caching right now.
-  var cacheHeader = '/* TARP-HEADER\n' + targets.length + '\n' + R.mapIndexed(function (target, i) {
+  var targetDepSubgraph = depGraph.subgraph(R.pluck('path', targets));
+  var ms = R.pluck('module', modules);
+  var codeHasChanged = ms.filter(mod => !this.groups[mod.path] || (this.groups[mod.path].hash != mod.hash));
+  var affectedFiles = targetDepSubgraph.inorder(R.pluck('path', codeHasChanged), undefined, true);
+  var targetsToRebuild = targets.filter(target => R.contains(target.path, affectedFiles));
+  // console.log('rebuild targets', targetsToRebuild, affectedFiles);
+  // console.log('code has changed', codeHasChanged);
+
+  var cacheHeader = '/* TARP-HEADER\n' + modules.length + '\n' + R.mapIndexed(function (_module, i) {
+    var target = _module.module;
     return [i, target.path, target.hash].join(' ');
-  }, targets).join('\n') + '\n*/\n';
+  }, modules).join('\n') + '\n*/\n';
+
   var me = this;
-  var concatCode = R.mapIndexed(function (target, pos) {
-    var code = me.groups[target.path] && (me.groups[target.path].hash == target.hash) ? me.groups[target.path].code : target.transform();
-    return wrap(code, pos);
-  }, targets).join('\n');
+  var concatCode = R.mapIndexed(function (_module, pos) {
+    var target = _module.module;
+    var code = '';
+    // console.log(targets, target.path);
+    if (R.pluck('path', targets).indexOf(target.path) >= 0) {
+      code = R.contains(target, targetsToRebuild) ? target.transform() : me.groups[target.path].code;
+    }
+    return addCacheDecorator(code, pos);
+  }, modules).join('\n');
   return cacheHeader + concatCode;
 };
 

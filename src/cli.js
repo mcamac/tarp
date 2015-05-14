@@ -4,27 +4,21 @@ var path = require('path');
 var R = require('ramda');
 var fs = require('fs');
 
-var Resolver = require('./Resolver');
 var Assembler = require('./Assembler');
 
 console.log(process.cwd());
 var confPath = path.join(process.cwd(), 'tarp.conf.js');
 var config = require(path.join(process.cwd(), 'tarp.conf.js'));
 var ass = new Assembler(config);
-var resolver = new Resolver(config.resolve);
-
-var Graph = require('./Graph');
-
-var targetGraph = new Graph();
-
 
 console.log(config.targets);
 var r = R.mapObjIndexed((components, target) => ass.buildTarget(target, components), config.targets);
 console.log(R.map(R.pick(['target', 'time']), R.values(r)));
 
+
 var cache = require('./Cache');
 var sane = require('sane');
-var watcher = sane(config.resolve.root, {glob: ['**/*.js', '**/*.es6', '**/*.css', '**/*.scss'], watchman: true});
+var watcher = sane(config.resolve.root, {glob: ['**/*.js', '**/*.es6', '**/*.jade'], watchman: true});
 watcher.on('change', function (filepath, root, stat) {
   console.log(filepath, root);
   cache.invalidate(path.resolve(root, filepath));
