@@ -23,7 +23,7 @@ class Assembler {
     this.targetGraph = new Graph();
     this.config = config;
 
-    var outputDir = path.resolve(process.cwd(), this.config.compile.outputDir);
+    var outputDir = path.resolve(this.config.resolve.root, this.config.compile.outputDir);
     this.targets = R.mapObjIndexed(
       (entryModules, target) => new Target(target, entryModules, outputDir),
       config.targets);
@@ -59,10 +59,10 @@ class Assembler {
       var noModifiedDependencies = R.all(x => x, R.values(modifiedDependencies));
       var sameEntryModuleList = R.eqDeep(
         targetCacheInfo.entryModules,
-        R.pluck('path', this.resolver.resolveMany(process.cwd(), target.entryModules)));
+        R.pluck('path', this.resolver.resolveMany(this.config.resolve.root, target.entryModules)));
 
-      console.log('mod'.green, modifiedDependencies, noModifiedDependencies, sameEntryModuleList,
-        targetCacheInfo.entryModules);
+      // console.log('mod'.green, modifiedDependencies, noModifiedDependencies, sameEntryModuleList,
+      //   targetCacheInfo.entryModules);
       if (noModifiedDependencies && sameEntryModuleList) {
         return false;
       }
@@ -81,7 +81,7 @@ class Assembler {
     var time = new Date().getTime();
 
     if (!this.checkIfNeedsRebuild(target)) {
-      console.log(target.target.green, 'no rebuild');
+      // console.log(target.target.green, 'no rebuild');
       return {
         target: target.target,
         time: new Date().getTime() - time
@@ -91,7 +91,7 @@ class Assembler {
     var componentModules = target.entryModules.map(comp => this.resolver.resolve(process.cwd(), comp));
     var depModules = this.depsForModules(componentModules);
 
-    var writer = new fileWriters[path.extname(target.target)](target.filePath);
+    var writer = new fileWriters[path.extname(target.target)](target);
     var {rebuild, code, map, cacheInfo} = writer.writeModules(componentModules, depModules, this.depGraph);
 
     // Update dependency graph and save to cache file.
@@ -116,7 +116,7 @@ class Assembler {
   depsForModules(componentModules) {
     componentModules.forEach(target => this.walkRequires(target));
     var inorderPaths = this.depGraph.inorder(R.map(R.prop('path'), componentModules));
-    var inorderModules = R.props(inorderPaths, this.depGraph.verts);
+    var inorderModules = inorderPaths.map(modulePath => FileCache.getModule(modulePath));
     return inorderModules;
   }
 
@@ -129,6 +129,7 @@ class Assembler {
     if (rootModule.path.indexOf(this.resolver.opts.noRequires) === -1) {
         depMatches = findRequires(rootModule.code);
     }
+    // console.log('deps of'.green, rootModule, depMatches);
     var deps = depMatches.map(R.prop('group')).map(depModule => this.resolver.resolve(rootModule.path, depModule));
 
     // Filter out unresolved modules.... (should throw error in the future.)

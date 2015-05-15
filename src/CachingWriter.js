@@ -6,13 +6,13 @@ var {SourceNode, SourceMapConsumer, SourceMapGenerator} = require('source-map');
 
 var FileCache = require('./Cache');
 
-var CachingWriter = function (path) {
-  this.path = path;
+var CachingWriter = function (target) {
+  this.target = target;
   this.groups = {};
   this.loadCacheInfoFromFs();
 }
 
-var cacheRegex = /\/\*- tarp-cache-\$START (\d+) -\*\/\n([\s\S]*)\n *\/\*- tarp-cache-\$END \1 -\*\//g;
+var cacheRegex = /\/\*- tarp-cache-\$START ([^ ]+) -\*\/\n([\s\S]*)\n *\/\*- tarp-cache-\$END \1 -\*\//g;
 var requireRegex = /require\(['"]([\w\.\-\/_]*)['"]\)/g;
 
 function getCacheLines(lines, totalChunks) {
@@ -23,38 +23,32 @@ function getCacheLines(lines, totalChunks) {
 }
 
 CachingWriter.prototype.loadCacheInfoFromFs = function () {
-  if (!fs.existsSync(this.path)) {
+  if (!fs.existsSync(this.target.filePath) || !fs.existsSync(this.target.cachePath)) {
     return this.groups;
   }
 
-  var src = fs.readFileSync(this.path).toString();
-
-  // Extract cache information (module paths and hashes) from header comment/
-  var totalChunks = parseInt(src.split('\n', 2)[1], 10);
-  var cacheCommentLines = src.split('\n', totalChunks + 2);
-  var cacheData = getCacheLines(cacheCommentLines, totalChunks);
+  var src = fs.readFileSync(this.target.filePath).toString();
+  var cacheJson = JSON.parse(fs.readFileSync(this.target.cachePath).toString());
+  this.groups = cacheJson.modules;
 
   // Gather existing module code from rest of source.
-  this.groups = {};
   var currentMatch;
   while ((currentMatch = cacheRegex.exec(src)) !== null) {
-    // Match object: 1 - module index, 2 - module code
-    var codeLines = currentMatch[2].split('\n');
+    // Match object: 1 - module path, 2 - module code
+    var [, modulePath, moduleCode] = currentMatch;
+    var codeLines = moduleCode.split('\n');
     var firstLine = codeLines[0];
-    this.groups[cacheData[currentMatch[1]].path] = {
-      hash: cacheData[currentMatch[1]].hash,
-      mtime: cacheData[currentMatch[1]].mtime,
-      index: currentMatch[1],
+    _.assign(this.groups[modulePath], {
       map: JSON.parse(firstLine.trim().slice(3, -3)),
       code: codeLines.slice(1).join('\n')
-    };
+    });
   }
 
   return this.groups;
 };
 
 CachingWriter.prototype.writeModules = function (entryModules, modules) {
-  var inorderPositionMap = R.invertObj(R.map(R.path(['module', 'path']), modules));
+  var inorderPositionMap = R.invertObj(R.pluck('path', modules));
   var cacheHeaderRows = [];
 
   var cacheInfo = {};
@@ -71,10 +65,9 @@ CachingWriter.prototype.writeModules = function (entryModules, modules) {
         cachedModule.code, new SourceMapConsumer(cachedModule.map));
     }
 
-    console.log('changed'.red)
     var time = new Date().getTime();
     var transformedModule = depModule.transform();
-    console.log('comp time'.red, new Date().getTime() - time, depModule.path);
+    // console.log('comp time'.red, new Date().getTime() - time, depModule.path);
     var codeWithTarpRequires = transformedModule.code;
     if (depModule.requires.length > 0) {
       codeWithTarpRequires = transformedModule.code.replace(requireRegex, (match, capture) => {
@@ -106,8 +99,8 @@ CachingWriter.prototype.writeModules = function (entryModules, modules) {
     node.prepend(`\/\/ ${sourceMap} */\n`);
     node.prepend(
       `(function (${moduleArgs}) {\n` +
-      '\/*- tarp-cache-$START ' + inorderPos + ' -*/\n');
-    node.add('\n/*- tarp-cache-$END ' + inorderPos + ' -*/\n}).bind(__this)');
+      '\/*- tarp-cache-$START ' + modules[inorderPos].path + ' -*/\n');
+    node.add('\n/*- tarp-cache-$END ' + modules[inorderPos].path + ' -*/\n}).bind(__this)');
     return node;
   });
 
@@ -123,7 +116,6 @@ CachingWriter.prototype.writeModules = function (entryModules, modules) {
     cacheHeaderRows.length,
     cacheHeaderRows.join('\n'),
     'TARP-HEADER */\n'].join('\n');
-  outputNode.add(cacheHeaderCommentStr);
   outputNode.add(FileCache.loaderCode);
   outputNode.add('var __tarp_code = [\n')
   outputNode.add(joinedModulesNode);
