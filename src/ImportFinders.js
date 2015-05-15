@@ -2,7 +2,7 @@
 var requireRegex = /require\(['"]([\w\.\-\/_]*)['"]\)/g;
 
 /**
- * Finds all require statements within given code.
+ * Finds all require statements within given code using the above regex.
  */
 function findRequires(sourceCode) {
   var groups = [];

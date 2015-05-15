@@ -5,7 +5,6 @@ var _ = require('lodash');
 var {SourceNode, SourceMapConsumer, SourceMapGenerator} = require('source-map');
 
 var FileCache = require('./Cache');
-var {indent, unindent} = require('./utils/StringUtils');
 
 var CachingWriter = function (path) {
   this.path = path;

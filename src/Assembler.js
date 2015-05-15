@@ -129,7 +129,6 @@ class Assembler {
     if (rootModule.path.indexOf(this.resolver.opts.noRequires) === -1) {
         depMatches = findRequires(rootModule.code);
     }
-    console.log('deps of', rootModule.path, depMatches);
     var deps = depMatches.map(R.prop('group')).map(depModule => this.resolver.resolve(rootModule.path, depModule));
 
     // Filter out unresolved modules.... (should throw error in the future.)
